@@ -43,7 +43,8 @@ class User(db.Model):
 class Friend(db.Model):
     id = db.StringProperty(required=True)
     name = db.StringProperty(required=True)
-    user = db.ReferenceProperty(User)
+    unfriended = db.BooleanProperty(default=False)
+    user = db.ReferenceProperty(User, collection_name='friends')
 
 class BaseHandler(webapp.RequestHandler):
     """Provides access to the active Facebook user in self.current_user
@@ -91,7 +92,7 @@ class SyncFriendsWorker(webapp.RequestHandler):
         friend_ids = set((f["id"] for f in friends))
 
         # check for unfriends
-        for friend in user.friend_set:
+        for friend in user.friends:
             if friend.id not in friend_ids:
                 logging.info('unfriend:%s' % friend.name)
             else:
