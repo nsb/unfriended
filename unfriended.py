@@ -19,9 +19,11 @@
 FACEBOOK_APP_ID = "166274003408283"
 FACEBOOK_APP_SECRET = "63a603a7707a3dda01daa0f78960c887"
 
-import facebook
+import logging
 import os.path
 import wsgiref.handlers
+
+import facebook
 
 from google.appengine.api import taskqueue
 from google.appengine.ext import db
@@ -85,8 +87,18 @@ class SyncFriendsWorker(webapp.RequestHandler):
         key = self.request.get('key')
         user = User.get_by_key_name(key)
         graph = facebook.GraphAPI(user.access_token)
-        friends = graph.get_connections("me", "friends")
-        for friend in friends["data"]:
+        friends = graph.get_connections("me", "friends")["data"]
+        friend_ids = set((f["id"] for f in friends))
+
+        # check for unfriends
+        for friend in user.friend_set:
+            if friend.id not in friend_ids:
+                logging.info('unfriend:%s' % friend.name)
+            else:
+                logging.info('friend:%s' % friend.name)
+
+        # update all friends
+        for friend in friends:
             def txn():
                 f = Friend(
                     key_name=str(friend["id"]),
@@ -112,6 +124,7 @@ class HomeHandler(BaseHandler):
         self.redirect('/')
 
 def main():
+    logging.getLogger().setLevel(logging.DEBUG)
     util.run_wsgi_app(webapp.WSGIApplication([(r"/", HomeHandler), (r"/syncfriends", SyncFriendsWorker),]))
 
 if __name__ == "__main__":
