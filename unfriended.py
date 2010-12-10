@@ -30,7 +30,7 @@ from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import template
-
+from google.appengine.api import mail
 
 class User(db.Model):
     id = db.StringProperty(required=True)
@@ -39,6 +39,7 @@ class User(db.Model):
     name = db.StringProperty(required=True)
     profile_url = db.StringProperty(required=True)
     access_token = db.StringProperty(required=True)
+    email = db.EmailProperty(required=False)
 
 class Friend(db.Model):
     id = db.StringProperty(required=True)
@@ -79,6 +80,15 @@ class BaseHandler(webapp.RequestHandler):
                 self._current_user = user
         return self._current_user
 
+class NotifyUnfriendedWorker(webapp.RequestHandler):
+    """
+    Notify on unfriended
+    """
+    def post(self):
+        key = self.request.get('key')
+        friend = Friend.get_by_key_name(key)
+        logging.info('unfriended:%s' % friend.name)
+
 class SyncFriendsWorker(webapp.RequestHandler):
     """
     To activate worker:
@@ -92,11 +102,11 @@ class SyncFriendsWorker(webapp.RequestHandler):
         friend_ids = set((f["id"] for f in friends))
 
         # check for unfriends
-        for friend in user.friends:
+        for friend in user.friends.filter("unfriended =", False):
             if friend.id not in friend_ids:
-                logging.info('unfriend:%s' % friend.name)
-            else:
-                logging.info('friend:%s' % friend.name)
+                friend.unfriended = True
+                friend.put()
+                taskqueue.add(url='/notifyunfriended', params={'key': friend.key()})
 
         # update all friends
         for friend in friends:
@@ -118,15 +128,26 @@ class HomeHandler(BaseHandler):
         self.response.out.write(template.render(path, args))
 
     def post(self):
-        key = self.request.get('key')
 
-        # Add the task to the default queue.
-        taskqueue.add(url='/syncfriends', params={'key': key})
+        key = self.request.get('key')
+        if key:
+            taskqueue.add(url='/syncfriends', params={'key': key})
+
+        email = self.request.get('email')
+        if mail.is_email_valid(email):
+            # prompt user to enter a valid address:
+            self.current_user.email = email
+            self.current_user.put()
+
         self.redirect('/')
 
 def main():
     logging.getLogger().setLevel(logging.DEBUG)
-    util.run_wsgi_app(webapp.WSGIApplication([(r"/", HomeHandler), (r"/syncfriends", SyncFriendsWorker),]))
+    util.run_wsgi_app(webapp.WSGIApplication([
+        (r"/", HomeHandler),
+        (r"/syncfriends", SyncFriendsWorker),
+        (r"/notifyunfriended", NotifyUnfriendedWorker),
+    ]))
 
 if __name__ == "__main__":
     main()
