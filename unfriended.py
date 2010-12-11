@@ -40,6 +40,7 @@ class User(db.Model):
     profile_url = db.StringProperty(required=True)
     access_token = db.StringProperty(required=True)
     email = db.EmailProperty(required=False)
+    active = db.BooleanProperty(default=False)
 
 class Friend(db.Model):
     id = db.StringProperty(required=True)
@@ -100,12 +101,12 @@ class SyncFriendsWorker(webapp.RequestHandler):
         graph = facebook.GraphAPI(user.access_token)
         friends = graph.get_connections("me", "friends")["data"]
         friend_ids = set((f["id"] for f in friends))
+        unfriended = set()
 
         # check for unfriends
         for friend in user.friends.filter("unfriended =", False):
             if friend.id not in friend_ids:
-                friend.unfriended = True
-                friend.put()
+                unfriended.add(friend.id)
                 taskqueue.add(url='/notifyunfriended', params={'key': friend.key()})
 
         # update all friends
@@ -116,6 +117,7 @@ class SyncFriendsWorker(webapp.RequestHandler):
                     id=str(friend["id"]),
                     name=friend["name"],
                     user=user.key(),
+                    unfriended=(friend["id"] in unfriended),
                 )
                 f.put()
             db.run_in_transaction(txn)
@@ -137,6 +139,7 @@ class HomeHandler(BaseHandler):
         if mail.is_email_valid(email):
             # prompt user to enter a valid address:
             self.current_user.email = email
+            self.current_user.active = True
             self.current_user.put()
 
         self.redirect('/')
