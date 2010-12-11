@@ -1,20 +1,6 @@
 #!/usr/bin/env python
-#
-# Copyright 2010 Facebook
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
 
-"""A barebones AppEngine application that uses Facebook for login."""
+"""Get notifications when unfriended on Facebook"""
 
 FACEBOOK_APP_ID = "166274003408283"
 FACEBOOK_APP_SECRET = "63a603a7707a3dda01daa0f78960c887"
@@ -89,7 +75,7 @@ class NotifyUnfriendedWorker(webapp.RequestHandler):
         key = self.request.get('key')
         friend = Friend.get_by_key_name(key)
         mail.send_mail(
-            'notifications@unfriendster.appspot.com',
+            'notifications@unfriendster.appspotmail.com',
             friend.user.email,
             'unfriended: %s' % friend.name,
             'sucks',
@@ -113,7 +99,7 @@ class SyncFriendsWorker(webapp.RequestHandler):
         for friend in user.friends.filter("unfriended =", False):
             if friend.id not in friend_ids:
                 unfriended.add(friend.id)
-                taskqueue.add(url='/notifyunfriended', params={'key': friend.key()})
+                taskqueue.add(url='/notifyunfriended', params={'key': friend.id})
 
         # update all friends
         for friend in friends:
@@ -123,7 +109,7 @@ class SyncFriendsWorker(webapp.RequestHandler):
                     id=str(friend["id"]),
                     name=friend["name"],
                     user=user.key(),
-                    unfriended=(friend["id"] in unfriended),
+                    unfriended= friend["id"] in unfriended,
                 )
                 f.put()
             db.run_in_transaction(txn)
