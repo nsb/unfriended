@@ -88,6 +88,12 @@ class NotifyUnfriendedWorker(webapp.RequestHandler):
     def post(self):
         key = self.request.get('key')
         friend = Friend.get_by_key_name(key)
+        mail.send_mail(
+            'notifications@unfriendster.appspot.com',
+            friend.user.email,
+            'unfriended: %s' % friend.name,
+            'sucks',
+        )
         logging.info('unfriended:%s' % friend.name)
 
 class SyncFriendsWorker(webapp.RequestHandler):
