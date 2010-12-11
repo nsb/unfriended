@@ -129,7 +129,6 @@ class HomeHandler(BaseHandler):
 
         email = self.request.get('email')
         if mail.is_email_valid(email):
-            # prompt user to enter a valid address:
             self.current_user.email = email
             self.current_user.active = True
             self.current_user.put()
