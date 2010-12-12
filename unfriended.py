@@ -82,7 +82,7 @@ class NotifyUnfriendedWorker(webapp.RequestHandler):
             'unfriended: %s' % friend.name,
             'sucks',
         )
-        logging.info('%s and %s is no longer friends' % (friend.user.name, friend.name))
+        logging.info('%s and %s are no longer friends' % (friend.user.name, friend.name))
 
 class SyncFriendsWorker(webapp.RequestHandler):
     """
