@@ -74,6 +74,8 @@ class NotifyUnfriendedWorker(webapp.RequestHandler):
     def post(self):
         key = self.request.get('key')
         friend = Friend.get_by_key_name(key)
+        friend.unfriended= True
+        friend.put()
         mail.send_mail(
             'notifications@unfriendster.appspotmail.com',
             friend.user.email,
@@ -93,12 +95,10 @@ class SyncFriendsWorker(webapp.RequestHandler):
         graph = facebook.GraphAPI(user.access_token)
         friends = graph.get_connections("me", "friends")["data"]
         friend_ids = set((f["id"] for f in friends))
-        unfriended = set()
 
         # check for unfriends
         for friend in user.friends.filter("unfriended =", False):
             if friend.id not in friend_ids:
-                unfriended.add(friend.id)
                 taskqueue.add(url='/notifyunfriended', params={'key': friend.id})
 
         # update all friends
@@ -109,7 +109,7 @@ class SyncFriendsWorker(webapp.RequestHandler):
                     id=str(friend["id"]),
                     name=friend["name"],
                     user=user.key(),
-                    unfriended= friend["id"] in unfriended,
+                    unfriended=False,
                 )
                 f.put()
             db.run_in_transaction(txn)
