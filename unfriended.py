@@ -73,7 +73,7 @@ class NotifyUnfriendedWorker(webapp.RequestHandler):
     """
     def post(self):
         key = self.request.get('key')
-        friend = Friend.get_by_key_name(key)
+        friend = Friend.get(key)
         friend.unfriended= True
         friend.put()
         mail.send_mail(
@@ -96,23 +96,16 @@ class SyncFriendsWorker(webapp.RequestHandler):
         friends = graph.get_connections("me", "friends")["data"]
         friend_ids = set((f["id"] for f in friends))
 
+        # update all friends
+        for friend in friends:
+            key_name = str(friend["id"])
+            f = Friend.get_or_insert(key_name, parent=user, id=str(friend["id"]),
+                                     user=user.key(), name=friend["name"])
+
         # check for unfriends
         for friend in user.friends.filter("unfriended =", False):
             if friend.id not in friend_ids:
-                taskqueue.add(url='/notifyunfriended', params={'key': friend.id})
-
-        # update all friends
-        for friend in friends:
-            def txn():
-                f = Friend(
-                    key_name=str(friend["id"]),
-                    id=str(friend["id"]),
-                    name=friend["name"],
-                    user=user.key(),
-                    unfriended=False,
-                )
-                f.put()
-            db.run_in_transaction(txn)
+                taskqueue.add(url='/notifyunfriended', params={'key': friend.key()})
 
 class HomeHandler(BaseHandler):
     def get(self):
