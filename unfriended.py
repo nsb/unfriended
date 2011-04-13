@@ -2,8 +2,13 @@
 
 """Get notifications when unfriended on Facebook"""
 
-FACEBOOK_APP_ID = "166274003408283"
-FACEBOOK_APP_SECRET = "63a603a7707a3dda01daa0f78960c887"
+# prod
+#FACEBOOK_APP_ID = "c29e42b8ebf58e101fef32e4b8564130"
+#FACEBOOK_APP_SECRET = "63a603a7707a3dda01daa0f78960c887"
+
+# devel
+FACEBOOK_APP_ID = "6bb2ee2d8e51a10fae9f29f6f2919ee7"
+FACEBOOK_APP_SECRET = "29e0bee7514bf75ffdd7ff42622b7d04"
 
 import logging
 import os.path
@@ -107,6 +112,15 @@ class SyncFriendsWorker(webapp.RequestHandler):
             if friend.id not in friend_ids:
                 taskqueue.add(url='/notifyunfriended', params={'key': friend.key()})
 
+class SyncUsersWorker(webapp.RequestHandler):
+    """
+    To activate worker:
+    curl --data-urlencode "" http://unfriendster.appspot.com/syncusers
+    """
+    def get(self):
+        for user in User.all():
+            taskqueue.add(url='/syncfriends', params={'key': user.id})
+
 class HomeHandler(BaseHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), "example.html")
@@ -132,6 +146,7 @@ def main():
     logging.getLogger().setLevel(logging.DEBUG)
     util.run_wsgi_app(webapp.WSGIApplication([
         (r"/", HomeHandler),
+        (r"/syncusers", SyncUsersWorker),
         (r"/syncfriends", SyncFriendsWorker),
         (r"/notifyunfriended", NotifyUnfriendedWorker),
     ]))
