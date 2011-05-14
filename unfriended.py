@@ -103,7 +103,8 @@ class SyncFriendsWorker(webapp.RequestHandler):
         graph = facebook.GraphAPI(user.access_token)
         try:
             friends = graph.get_connections("me", "friends")["data"]
-        except urllib2.HTTPError:
+        except urllib2.HTTPError, e:
+            logging.error('Error getting friend connections for %s' % user.name)
             return
 
         friend_ids = set((f["id"] for f in friends))
