@@ -1,4 +1,4 @@
 cron:
 - description: check all users for unfriends
   url: /syncusers
-  schedule: every 1 day
+  schedule: every 12 hours
