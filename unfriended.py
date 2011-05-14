@@ -12,6 +12,7 @@ FACEBOOK_APP_SECRET = "63a603a7707a3dda01daa0f78960c887"
 #FACEBOOK_APP_KEY = "6bb2ee2d8e51a10fae9f29f6f2919ee7"
 #FACEBOOK_APP_SECRET = "29e0bee7514bf75ffdd7ff42622b7d04"
 
+import urllib2
 import logging
 import os.path
 import wsgiref.handlers
